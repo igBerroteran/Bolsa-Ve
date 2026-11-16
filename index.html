@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ávila · Bolsa de Caracas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='10' fill='%231f1c16'/%3E%3Cpath d='M4 25 L12 13 L16 18 L21 9 L30 25 Z' fill='%23c98a00'/%3E%3Cpath d='M4 25 L12 13 L16 18 L13 25 Z' fill='%231e7b4f'/%3E%3C/svg%3E">
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -208,7 +209,7 @@ let S = { simb: store.get('simb', 'BVCC'), tf: TFS.some(t => t[0] === store.get(
 if (window.DEMO && !window.DEMO_SIMBOLOS.includes(S.simb) && !NOM_IDX[S.simb]) S.simb = 'ORI';
 if (window.DEMO) {
   document.title = 'Ávila · Terminal bursátil (demo)';
-  $('.marca small').textContent = 'Demo · datos simulados';
+  $('.marca small').textContent = 'Demo simulada';
   $('#pie').innerHTML = '<b>DEMO:</b> datos 100 % simulados de empresas ficticias; no son cotizaciones reales ni de ninguna bolsa. Paper trading con dinero ficticio. No es asesoría financiera. Gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> © TradingView, Inc. (Apache 2.0).';
 }
 let mercado = [], tasas = {}, info = {}, velas = [], seriePrincipal = null, overlays = [], volSerie = null, tendPend = null, cartera = null;
