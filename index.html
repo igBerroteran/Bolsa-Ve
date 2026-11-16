@@ -149,6 +149,10 @@
   #aceptarAviso { background:var(--ink); color:var(--panel); font-weight:600; }
   #aceptarAviso:disabled { opacity:.35; }
   #aceptarAviso:not(:disabled):hover { background:#3a352b; }
+  #aviso-legal .privado { display:flex; gap:8px; align-items:center; flex-wrap:wrap; border-top:1px dashed var(--line); margin-top:16px; padding-top:12px; font-size:12px; color:var(--mute); }
+  #aviso-legal .privado input { width:180px; padding:5px 12px; }
+  #aviso-legal .privado button { border:1px solid var(--line); padding:5px 12px; }
+  #errPriv { color:var(--down); width:100%; }
   #verAviso { padding:0; color:var(--mute); text-decoration:underline; font-size:11px; background:none; border-radius:0; }
 </style>
 </head>
@@ -229,8 +233,15 @@
       <button id="salirAviso" type="button">Salir</button>
       <button id="aceptarAviso" type="button" disabled>Entrar a la demo</button>
     </div>
+    <form class="privado" id="formPriv" autocomplete="off">
+      <span>¿Acceso privado?</span>
+      <input id="clavePriv" type="password" placeholder="Contraseña" autocomplete="current-password">
+      <button type="submit" id="btnPriv">Entrar</button>
+      <small id="errPriv"></small>
+    </form>
   </div>
 </div>
+<script src="privado.js"></script>
 <script src="demo.js"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -253,6 +264,13 @@ if (window.DEMO) {
   $('.marca small').textContent = 'Demo simulada';
   $('#pie').innerHTML = '<b>DEMO:</b> datos 100 % simulados de empresas ficticias; no son cotizaciones reales ni de ninguna bolsa. Paper trading con dinero ficticio. No es asesoría financiera. Gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> © TradingView, Inc. (Apache 2.0).';
 }
+if (window.PRIVADO && ['ORI','AVI','LLA','CAT','ROR','MAR','TEP','CAR','AND','ARA','IAV'].includes(S.simb)) S.simb = 'BVCC';
+if (window.PRIVADO) {
+  document.title = 'Ávila · Acceso privado';
+  $('.marca small').textContent = 'Acceso privado';
+  $('#pie').innerHTML = '<b>Acceso privado.</b> Datos © Bolsa de Valores de Caracas, solo uso personal: no redistribuir. Tasas: BCV y paralelo (DolarApi). Paper trading simulado. No es asesoría financiera. Gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> © TradingView, Inc. <button id="salirPriv" type="button" style="padding:0;text-decoration:underline;font-size:11px;color:inherit">Cerrar sesión</button>';
+  $('#salirPriv').onclick = () => window.salirPrivado();
+}
 let mercado = [], tasas = {}, info = {}, velas = [], seriePrincipal = null, overlays = [], volSerie = null, tendPend = null, cartera = null;
 
 const mon = () => $('#moneda').value;
@@ -262,7 +280,7 @@ const fmt = (v, d) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('
 const money = v => { if (v == null) return '—'; const k = tasaHoy(); return k ? (mon() === 'bs' ? '' : '$') + fmt(v / k) : '—'; };
 const fmtK = v => v == null ? '—' : v >= 1e9 ? fmt(v/1e9) + 'B' : v >= 1e6 ? fmt(v/1e6) + 'M' : v >= 1e3 ? fmt(v/1e3) + 'K' : fmt(v, 0);
 const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
-const api = window.DEMO ? window.demoApi : (u, body) => fetch(u, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {}).then(r => r.json());
+const api = window.PRIVADO ? window.privadoApi : window.DEMO ? window.demoApi : (u, body) => fetch(u, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {}).then(r => r.json());
 const intradia = () => S.tf.startsWith('S');
 
 // ---------- Gráficos ----------
@@ -438,7 +456,7 @@ async function cargarMercado() {
   const d = await api('/api/mercado'); mercado = d.filas; tasas = d.tasa;
   $('#estado').innerHTML = (d.abierto ? '<span class="up">● Abierto</span>' : '<span class="down">● Cerrado</span>') +
     (tasas.bcv ? ` · BCV ${fmt(tasas.bcv.usd, 2)}` : '') + (tasas.paralelo ? ` · Paralelo ${fmt(tasas.paralelo.usd, 2)}` : '') +
-    (d.estado.ultima ? ` · act. ${d.estado.ultima.slice(11,16)}` : '');
+    (d.estado.ultima ? (window.PRIVADO ? ` · datos al ${d.estado.ultima.slice(0,10)}` : ` · act. ${d.estado.ultima.slice(11,16)}`) : '');
   const idx = await Promise.all(Object.keys(NOM_IDX).map(async k => { const v = (await api(`/api/velas?simb=${k}&tf=D`)).velas;
     const u = v.at(-1), p = v.at(-2); return {simbolo:k, nombre:NOM_IDX[k], precio:u?.close, var_rel: u && p ? (u.close/p.close-1)*100 : null, idx:true}; }));
   $('#simbolos').innerHTML = [...idx, ...mercado].map(m => `<option value="${m.simbolo}">${m.nombre || ''}</option>`).join('');
@@ -573,6 +591,11 @@ if (window.DEMO) {
   if (!aceptado || Date.now() - Date.parse(aceptado) > 30 * 864e5) abrirAviso();
   $('#pie').insertAdjacentHTML('beforeend', ' <button id="verAviso" type="button">Aviso legal</button>');
   $('#verAviso').onclick = abrirAviso;
+  $('#formPriv').onsubmit = async e => {
+    e.preventDefault(); const c = $('#clavePriv').value; if (!c) return;
+    $('#btnPriv').disabled = true; $('#errPriv').textContent = 'Verificando…';
+    try { await window.accederPrivado(c); } catch (err) { $('#errPriv').textContent = err.message; $('#btnPriv').disabled = false; }
+  };
 }
 
 marcarTf();

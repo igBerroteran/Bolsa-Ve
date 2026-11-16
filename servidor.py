@@ -355,10 +355,16 @@ class Manejador(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             return self.wfile.write(cuerpo)
-        if u.path == "/demo.js":
-            cuerpo = (Path(__file__).parent / "demo.js").read_bytes()
+        estaticos = {"/demo.js": "text/javascript; charset=utf-8", "/privado.js": "text/javascript; charset=utf-8",
+                     "/datos.enc": "application/octet-stream"}
+        if u.path in estaticos:
+            f = Path(__file__).parent / u.path[1:]
+            if not f.exists():
+                return self._json({"error": "no existe"}, 404)
+            cuerpo = f.read_bytes()
             self.send_response(200)
-            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Content-Type", estaticos[u.path])
+            self.send_header("Content-Length", str(len(cuerpo)))
             self.end_headers()
             return self.wfile.write(cuerpo)
         if u.path == "/favicon.ico":

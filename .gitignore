@@ -5,3 +5,5 @@ bvc.db
 __pycache__/
 *.log
 .playwright-mcp/
+.venv/
+clave.txt

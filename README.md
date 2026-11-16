@@ -31,3 +31,15 @@ Fuera de `127.0.0.1`/`localhost` (por ejemplo en Vercel), o con `?demo` en la UR
 datos **100 % simulados** de empresas ficticias (Banco Orinoco, Cementos Ávila...), sin servidor y sin datos
 de la BVC. La cartera simulada se guarda en el navegador. Así se puede mostrar públicamente sin
 redifundir información de la bolsa.
+
+## Acceso privado con datos reales (snapshot cifrado)
+Como Legal Venezuela: la web en Vercel no tiene servidor; lee un snapshot. Aquí va **cifrado**:
+- `exportar.py` arma el snapshot (precios, velas, ticks, libro, tasas) → gzip → **AES-256-GCM** con clave
+  PBKDF2-SHA256 (600 000 iteraciones) derivada de tu contraseña → `datos.enc` (~90 KB).
+- En la web, "¿Acceso privado?" (dentro del aviso legal) pide la contraseña; `privado.js` descifra en el
+  navegador. Sin contraseña solo se ve la demo. La contraseña vive en `sessionStorage` (se borra al cerrar la pestaña).
+- `publicar.bat` recolecta, exporta, hace commit de `datos.enc` y push → Vercel redespliega.
+  Tarea programada de Windows "BVC publicar": cada 2 semanas, viernes 15:00.
+
+**Una sola vez:** crea `clave.txt` en esta carpeta con tu contraseña (mínimo 10 caracteres, larga y única).
+Está en `.gitignore`: nunca se sube. Si la pierdes, crea otra y vuelve a ejecutar `publicar.bat`.

@@ -2,7 +2,7 @@
    Se activa fuera de 127.0.0.1/localhost (por ejemplo en Vercel) o con ?demo en la URL.
    No usa ni muestra datos de la Bolsa de Valores de Caracas. */
 (function () {
-  const DEMO = !['127.0.0.1', 'localhost'].includes(location.hostname) || new URLSearchParams(location.search).has('demo');
+  const DEMO = (!['127.0.0.1', 'localhost'].includes(location.hostname) || new URLSearchParams(location.search).has('demo')) && !window.PRIVADO;
   window.DEMO = DEMO;
   if (!DEMO) return;
 
