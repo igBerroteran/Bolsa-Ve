@@ -355,6 +355,12 @@ class Manejador(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             return self.wfile.write(cuerpo)
+        if u.path == "/demo.js":
+            cuerpo = (Path(__file__).parent / "demo.js").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.end_headers()
+            return self.wfile.write(cuerpo)
         if u.path == "/favicon.ico":
             self.send_response(204)
             return self.end_headers()

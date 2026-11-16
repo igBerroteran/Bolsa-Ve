@@ -25,3 +25,9 @@ Recolectar sin abrir la web: `py -3 bvc.py` (una vez).
 ## Límite de los datos
 La BVC solo publica **cierres diarios** del último año (sin máx/mín). Esas velas se aproximan (apertura = cierre anterior).
 Cada sesión que el programa recolecta guarda la vela **real** (apertura, máx, mín, cierre) y los ticks intradía.
+
+## Modo demo (versión pública)
+Fuera de `127.0.0.1`/`localhost` (por ejemplo en Vercel), o con `?demo` en la URL, la app usa `demo.js`:
+datos **100 % simulados** de empresas ficticias (Banco Orinoco, Cementos Ávila...), sin servidor y sin datos
+de la BVC. La cartera simulada se guarda en el navegador. Así se puede mostrar públicamente sin
+redifundir información de la bolsa.

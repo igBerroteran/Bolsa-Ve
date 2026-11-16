@@ -189,6 +189,7 @@
 
 <div id="pie">Paper trading: dinero simulado. Datos © Bolsa de Valores de Caracas, solo uso personal (no redistribuir). Tasa BCV. No es asesoría financiera. Gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> © TradingView, Inc. (Apache 2.0).</div>
 
+<script src="demo.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const LC = LightweightCharts;
@@ -200,10 +201,16 @@ const MON = {bs:'Bs', bcv:'USD BCV', paralelo:'USD paralelo'};
 const INDS = { vol:'Volumen', sma20:'SMA 20', sma50:'SMA 50', ema20:'EMA 20', ema200:'EMA 200', bb:'Bandas de Bollinger (20,2)', rsi:'RSI (14)', macd:'MACD (12,26,9)' };
 const COL = { sma20:'#c98a00', sma50:'#0e6e8c', ema20:'#7c3aed', ema200:'#9a3412', bb:'#64748b' };
 const UP = '#1e7b4f', DOWN = '#c4452b', ACC = '#0e6e8c';
-const NOM_IDX = { IBC:'IBC', FIN:'Financiero', IND:'Industrial' };
+const NOM_IDX = window.DEMO ? window.DEMO_INDICES : { IBC:'IBC', FIN:'Financiero', IND:'Industrial' };
 
 let S = { simb: store.get('simb', 'BVCC'), tf: TFS.some(t => t[0] === store.get('tf')) ? store.get('tf') : 'D', tipo: store.get('tipo', 'velas'),
           ind: store.get('ind', {vol:true, sma20:true, sma50:true}), log: store.get('log', false), herr: 'cursor' };
+if (window.DEMO && !window.DEMO_SIMBOLOS.includes(S.simb) && !NOM_IDX[S.simb]) S.simb = 'ORI';
+if (window.DEMO) {
+  document.title = 'Ávila · Terminal bursátil (demo)';
+  $('.marca small').textContent = 'Demo · datos simulados';
+  $('#pie').innerHTML = '<b>DEMO:</b> datos 100 % simulados de empresas ficticias; no son cotizaciones reales ni de ninguna bolsa. Paper trading con dinero ficticio. No es asesoría financiera. Gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> © TradingView, Inc. (Apache 2.0).';
+}
 let mercado = [], tasas = {}, info = {}, velas = [], seriePrincipal = null, overlays = [], volSerie = null, tendPend = null, cartera = null;
 
 const mon = () => $('#moneda').value;
@@ -213,7 +220,7 @@ const fmt = (v, d) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('
 const money = v => { if (v == null) return '—'; const k = tasaHoy(); return k ? (mon() === 'bs' ? '' : '$') + fmt(v / k) : '—'; };
 const fmtK = v => v == null ? '—' : v >= 1e9 ? fmt(v/1e9) + 'B' : v >= 1e6 ? fmt(v/1e6) + 'M' : v >= 1e3 ? fmt(v/1e3) + 'K' : fmt(v, 0);
 const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
-const api = (u, body) => fetch(u, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {}).then(r => r.json());
+const api = window.DEMO ? window.demoApi : (u, body) => fetch(u, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {}).then(r => r.json());
 const intradia = () => S.tf.startsWith('S');
 
 // ---------- Gráficos ----------
@@ -322,7 +329,7 @@ function leyenda(p) {
   if (S.ind.sma50) ind += `<span style="color:${COL.sma50}">SMA50 ${fmt(sma(cierres,50).at(-1))}</span>`;
   if (S.ind.ema20) ind += `<span style="color:${COL.ema20}">EMA20 ${fmt(ema(cierres,20).at(-1))}</span>`;
   if (S.ind.ema200) ind += `<span style="color:${COL.ema200}">EMA200 ${fmt(ema(cierres,200).at(-1))}</span>`;
-  $('#ley').innerHTML = `<div><span class="t">${S.simb}</span><span class="mute">${nombre} · ${intradia() ? 'Sesión ' + (info.fecha_sesion || '') + ' · ' : ''}${TFS.find(t => t[0] === S.tf)[1]} · BVC · ${MON[mon()]}</span></div>
+  $('#ley').innerHTML = `<div><span class="t">${S.simb}</span><span class="mute">${nombre} · ${intradia() ? 'Sesión ' + (info.fecha_sesion || '') + ' · ' : ''}${TFS.find(t => t[0] === S.tf)[1]} · ${window.DEMO ? 'DEMO' : 'BVC'} · ${MON[mon()]}</span></div>
     <div><span>O <b class="${k}">${fmt(v.open)}</b></span><span>H <b class="${k}">${fmt(v.high)}</b></span><span>L <b class="${k}">${fmt(v.low)}</b></span>
     <span>C <b class="${k}">${fmt(v.close)}</b></span><span class="${k}">${ch >= 0 ? '+' : ''}${fmt(ch)} (${ch >= 0 ? '+' : ''}${fmt(chp, 2)}%)</span>
     ${v.volume ? `<span class="mute">Vol ${fmtK(v.volume)}</span>` : ''}</div><div>${ind}</div>`;
@@ -365,7 +372,7 @@ async function cargarVelas() {
   velas = d.velas; info = d;
   chart.applyOptions({timeScale:{timeVisible: d.intradia}});
   const av = [];
-  if (d.intradia) av.push(velas.length ? `Última sesión (${d.fecha_sesion}), precios minuto a minuto de la BVC.` : 'Sin datos de sesión todavía.');
+  if (d.intradia) av.push(velas.length ? `Última sesión (${d.fecha_sesion}), precios minuto a minuto${window.DEMO ? ' (simulados)' : ' de la BVC'}.` : 'Sin datos de sesión todavía.');
   else if (d.aproximadas) av.push('La BVC solo publica cierres diarios: velas sin mechas salvo las sesiones que el recolector guardó completas.');
   if (mon() !== 'bs') av.push(`Convertido con la tasa ${mon() === 'bcv' ? 'oficial BCV' : 'paralela'} de cada día` + (mon() === 'paralelo' && d.tasa_desde ? ` (disponible desde ${d.tasa_desde})` : '') + '.');
   $('#aviso').textContent = av.join(' ');
@@ -401,7 +408,7 @@ async function cargarMercado() {
 }
 
 async function ficha() {
-  if (NOM_IDX[S.simb]) { $('#ficha').innerHTML = `<h3>${NOM_IDX[S.simb]}</h3><div class="stats mute" style="display:block">Índice de la Bolsa de Caracas. Elige una acción para operar.</div>`; return; }
+  if (NOM_IDX[S.simb]) { $('#ficha').innerHTML = `<h3>${NOM_IDX[S.simb]}</h3><div class="stats mute" style="display:block">${window.DEMO ? 'Índice simulado de la demo' : 'Índice de la Bolsa de Caracas'}. Elige una acción para operar.</div>`; return; }
   const m = mercado.find(x => x.simbolo === S.simb) || {}; const d = await api('/api/detalle?simb=' + encodeURIComponent(S.simb));
   const maxV = Math.max(1, ...(d.libro || []).flatMap(n => [n.bid_vol || 0, n.ask_vol || 0]));
   const libro = (d.libro || []).filter(n => n.bid || n.ask).map(n => `<tr>
