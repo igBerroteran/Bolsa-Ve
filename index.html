@@ -131,6 +131,25 @@
     #top { flex-wrap:wrap; padding:8px 0; } .marca { width:auto; } #tools { display:none; }
     #centro, #der, #abajo, #pie, #top { grid-column:1; grid-row:auto; }
   }
+  /* aviso legal (modo demo) */
+  #aviso-legal { position:fixed; inset:0; z-index:100; display:none; align-items:center; justify-content:center; padding:16px;
+                 background:rgba(31,28,22,.55); backdrop-filter:blur(3px); }
+  #aviso-legal.ver { display:flex; }
+  #aviso-legal .caja { background:var(--panel); border:1px solid var(--line); border-radius:18px; max-width:620px; width:100%;
+                       max-height:calc(100vh - 32px); overflow:auto; padding:26px 28px; box-shadow:0 24px 70px rgba(31,28,22,.35); }
+  #aviso-legal h2 { font:700 24px/1.2 Fraunces, Georgia, serif; margin:0 0 4px; }
+  #aviso-legal .sello { display:inline-block; background:var(--gold); color:#fff; font:600 11px/1 "IBM Plex Sans"; letter-spacing:1.5px;
+                        padding:5px 10px; border-radius:999px; margin-bottom:12px; }
+  #aviso-legal ul { padding-left:18px; margin:12px 0; } #aviso-legal li { margin:7px 0; }
+  #aviso-legal .en { color:var(--mute); font-size:12px; border-top:1px solid var(--line); padding-top:10px; margin-top:12px; }
+  #aviso-legal label { display:flex; gap:10px; align-items:flex-start; margin:14px 0; font-weight:500; cursor:pointer; }
+  #aviso-legal label input { margin-top:3px; width:18px; height:18px; flex:none; }
+  #aviso-legal .acciones { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+  #aviso-legal .acciones button { border:1px solid var(--line); }
+  #aceptarAviso { background:var(--ink); color:var(--panel); font-weight:600; }
+  #aceptarAviso:disabled { opacity:.35; }
+  #aceptarAviso:not(:disabled):hover { background:#3a352b; }
+  #verAviso { padding:0; color:var(--mute); text-decoration:underline; font-size:11px; background:none; border-radius:0; }
 </style>
 </head>
 <body>
@@ -190,6 +209,28 @@
 
 <div id="pie">Paper trading: dinero simulado. Datos © Bolsa de Valores de Caracas, solo uso personal (no redistribuir). Tasa BCV. No es asesoría financiera. Gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> © TradingView, Inc. (Apache 2.0).</div>
 
+
+<div id="aviso-legal" role="dialog" aria-modal="true" aria-labelledby="avisoTitulo">
+  <div class="caja">
+    <span class="sello">DEMOSTRACIÓN · DEMO</span>
+    <h2 id="avisoTitulo">Aviso importante antes de continuar</h2>
+    <p>Este sitio es una <b>demostración técnica y educativa</b> de una interfaz de gráficos financieros. Al usarlo aceptas lo siguiente:</p>
+    <ul>
+      <li><b>Datos ficticios.</b> Todas las empresas, precios, volúmenes, índices, libros de órdenes y tasas de cambio son <b>generados al azar</b>. No representan cotizaciones reales ni de ningún mercado, emisor o banco central.</li>
+      <li><b>Sin afiliación.</b> Este sitio no está afiliado, avalado ni patrocinado por ninguna bolsa de valores, casa de bolsa, banco central, regulador ni por TradingView. Cualquier parecido de nombres con entidades reales es coincidencia.</li>
+      <li><b>No es asesoría financiera.</b> Nada de lo que se muestra es una recomendación de inversión, de compra o de venta. No tomes decisiones con base en este sitio.</li>
+      <li><b>Sin dinero real.</b> Las compras y ventas son simuladas con dinero ficticio. No se ejecutan órdenes, no se reciben pagos y no se custodian valores.</li>
+      <li><b>Sin garantías.</b> Se ofrece "tal cual", sin garantía de ningún tipo. El autor no se hace responsable de daños o pérdidas derivados de su uso.</li>
+      <li><b>Privacidad.</b> No se recogen datos personales. La cartera simulada solo se guarda en tu navegador.</li>
+    </ul>
+    <p class="en"><b>English:</b> Technical and educational demo. All companies, prices and exchange rates are randomly generated and fictitious. Not affiliated with any stock exchange, broker, central bank, regulator or TradingView. Not financial advice. Simulated trading with fake money only. Provided "as is" without warranty; the author accepts no liability for any use. No personal data is collected.</p>
+    <label><input type="checkbox" id="chkAviso"> Entiendo que es una demo con datos ficticios, que no es asesoría financiera y que la uso bajo mi propia responsabilidad.</label>
+    <div class="acciones">
+      <button id="salirAviso" type="button">Salir</button>
+      <button id="aceptarAviso" type="button" disabled>Entrar a la demo</button>
+    </div>
+  </div>
+</div>
 <script src="demo.js"></script>
 <script>
 const $ = s => document.querySelector(s);
@@ -518,6 +559,21 @@ document.querySelectorAll('.div-pane').forEach(d => arrastrar(d, 'h', (dx, dy, i
 new ResizeObserver(colocar).observe(document.body);
 addEventListener('resize', colocar);
 aplicarLayout();
+
+// ---------- Aviso legal (solo modo demo) ----------
+if (window.DEMO) {
+  const CLAVE_AVISO = 'aviso-demo-v1', modal = $('#aviso-legal');
+  const abrirAviso = () => { modal.classList.add('ver'); $('#chkAviso').checked = false; $('#aceptarAviso').disabled = true; $('#chkAviso').focus(); };
+  $('#chkAviso').onchange = e => { $('#aceptarAviso').disabled = !e.target.checked; };
+  $('#aceptarAviso').onclick = () => { store.set(CLAVE_AVISO, new Date().toISOString()); modal.classList.remove('ver'); };
+  $('#salirAviso').onclick = () => { location.href = 'about:blank'; };
+  modal.addEventListener('keydown', e => { if (e.key === 'Escape') e.preventDefault(); });
+  // se vuelve a mostrar cada 30 días
+  const aceptado = store.get(CLAVE_AVISO, null);
+  if (!aceptado || Date.now() - Date.parse(aceptado) > 30 * 864e5) abrirAviso();
+  $('#pie').insertAdjacentHTML('beforeend', ' <button id="verAviso" type="button">Aviso legal</button>');
+  $('#verAviso').onclick = abrirAviso;
+}
 
 marcarTf();
 cargarMercado().then(cargarCartera).then(cargarVelas);
