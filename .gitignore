@@ -1,0 +1,7 @@
+# Datos de la BVC: solo uso personal (cláusula 8 de sus términos), nunca al repo
+bvc.db
+*.db
+*.db-journal
+__pycache__/
+*.log
+.playwright-mcp/

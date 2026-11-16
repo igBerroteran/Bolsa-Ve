@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ávila · Bolsa de Caracas</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light; --bg:#f1ebdf; --panel:#fffdf8; --line:#e6ddcc; --hover:#f6f0e4; --ink:#1f1c16;
+          --txt:#1f1c16; --mute:#8a8172; --up:#1e7b4f; --down:#c4452b; --acc:#0e6e8c; --gold:#c98a00;
+          --upbg:rgba(30,123,79,.11); --downbg:rgba(196,69,43,.11); --sombra:0 1px 2px rgba(60,45,20,.06), 0 6px 20px rgba(60,45,20,.06); }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:13px/1.45 "IBM Plex Sans", system-ui, sans-serif;
+         display:grid; grid-template-rows:60px minmax(0,1fr) var(--abajo,190px) 26px; grid-template-columns:var(--izq,300px) minmax(0,1fr); gap:10px; padding:0 10px; overflow:hidden; }
+  .num, td, .big, #estado { font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums; }
+  button, select, input { background:transparent; color:var(--txt); border:0; border-radius:999px; padding:6px 12px; font:inherit; white-space:nowrap; }
+  button { cursor:pointer; transition:background .15s, color .15s; } button:hover { background:var(--hover); }
+  button.on { background:var(--ink); color:var(--panel); }
+  button:disabled { cursor:default; }
+  select { border:1px solid var(--line); background:var(--panel); padding:6px 10px; }
+  input { background:var(--panel); border:1px solid var(--line); }
+  input:focus, select:focus { outline:2px solid var(--acc); outline-offset:1px; }
+  .up { color:var(--up); } .down { color:var(--down); } .mute { color:var(--mute); }
+  .sep { width:1px; height:24px; background:var(--line); margin:0 6px; }
+  .tarjeta { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--sombra); }
+
+  #top { grid-column:1/3; display:flex; align-items:center; gap:6px; }
+  .marca { display:flex; align-items:center; gap:10px; width:calc(var(--izq,300px) - 10px); min-width:180px; }
+  .marca svg { flex:none; }
+  .marca b { font:700 22px/1 Fraunces, Georgia, serif; letter-spacing:-.3px; }
+  .marca small { display:block; color:var(--mute); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; margin-top:3px; }
+  #buscar { width:150px; text-transform:uppercase; font-weight:600; padding-left:14px; }
+  .seg { display:inline-flex; align-items:center; gap:2px; background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:3px; }
+  .seg button { padding:4px 11px; font-size:12px; }
+  .seg .etq { color:var(--mute); font-size:11px; padding:0 6px 0 8px; text-transform:uppercase; letter-spacing:.8px; }
+  .grow { flex:1; }
+  .menu { position:relative; }
+  .menu > button { border:1px solid var(--line); background:var(--panel); }
+  .menu .lista { display:none; position:absolute; top:40px; left:0; background:var(--panel); border:1px solid var(--line);
+                 border-radius:14px; padding:8px; z-index:20; min-width:230px; box-shadow:0 14px 40px rgba(60,45,20,.18); }
+  .menu.abierto .lista { display:block; }
+  .lista label { display:flex; gap:10px; padding:7px 10px; border-radius:8px; cursor:pointer; }
+  .lista label:hover { background:var(--hover); }
+  #btnLog { border:1px solid var(--line); background:var(--panel); font-size:12px; }
+  #btnLog.on { background:var(--ink); }
+  #estado { font-size:11px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+
+  #centro { grid-column:2; grid-row:2; position:relative; display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; }
+  #main { flex:1; min-height:0; position:relative; }
+  .pane { height:90px; border-top:1px dashed var(--line); position:relative; display:none; }
+  .pane.ver { display:block; }
+  #tools { position:absolute; left:12px; top:50%; transform:translateY(-50%); z-index:6; display:flex; flex-direction:column; gap:4px;
+           background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:5px; box-shadow:var(--sombra); }
+  #tools button { width:32px; height:32px; padding:0; font-size:14px; }
+  .leyenda { position:absolute; top:12px; left:60px; z-index:5; pointer-events:none; font-size:12px; line-height:1.7; }
+  #ley { background:rgba(255,253,248,.92); border:1px solid var(--line); border-radius:12px; padding:8px 12px; backdrop-filter:blur(4px); }
+  .leyenda .t { font:700 18px/1 Fraunces, Georgia, serif; margin-right:8px; }
+  .leyenda span { margin-right:10px; }
+  .leyenda b { font-family:"IBM Plex Mono", monospace; font-weight:500; }
+  #rangos { display:flex; gap:4px; padding:6px 10px; border-top:1px solid var(--line); align-items:center; }
+  #rangos button { font-size:12px; padding:3px 10px; }
+  #aviso { color:var(--mute); font-size:11px; margin-left:auto; font-style:italic; }
+
+  #der { grid-row:2/4; grid-column:1; display:flex; flex-direction:column; gap:10px; min-height:0; }
+  #der h3 { margin:0; padding:12px 14px 6px; font:600 11px/1 "IBM Plex Sans"; color:var(--mute); text-transform:uppercase; letter-spacing:1.5px; }
+  #lista { flex:1; display:flex; flex-direction:column; min-height:0; }
+  #watch { flex:1; overflow:auto; padding:0 6px 6px; }
+  table { width:100%; border-collapse:collapse; }
+  td, th { padding:5px 8px; text-align:right; white-space:nowrap; }
+  th { color:var(--mute); font:500 10px/1 "IBM Plex Sans"; text-transform:uppercase; letter-spacing:1px; padding-bottom:8px; }
+  td:first-child, th:first-child { text-align:left; }
+  #watch thead { display:none; }
+  #watch tr { cursor:pointer; } #watch tbody tr[data-s]:hover td { background:var(--hover); }
+  #watch td { padding:7px 8px; border-bottom:1px solid var(--hover); }
+  #watch td:first-child { font-family:"IBM Plex Sans"; font-weight:600; border-radius:8px 0 0 8px; }
+  #watch td:last-child { border-radius:0 8px 8px 0; }
+  #watch tr.sel td { background:var(--ink); color:var(--panel); }
+  #watch tr.sel td .up, #watch tr.sel td .down { color:var(--panel); }
+  .chip { display:inline-block; min-width:62px; padding:2px 8px; border-radius:999px; font-size:12px; text-align:right; }
+  .chip.up { background:var(--upbg); } .chip.down { background:var(--downbg); } .chip.cero { background:var(--hover); color:var(--mute); }
+  .grupo td { color:var(--mute); font:600 10px/1 "IBM Plex Sans" !important; letter-spacing:1.5px; padding:14px 8px 6px !important; cursor:default; border:0 !important; background:none !important; }
+  #ficha { overflow:auto; height:var(--ficha,50%); flex:none; }
+  #ficha h3 { padding-top:14px; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; padding:0 14px 10px; font-size:12px; }
+  .stats div { display:flex; justify-content:space-between; font-family:"IBM Plex Mono", monospace; }
+  .stats span { font-family:"IBM Plex Sans"; }
+  .libro { margin:0 6px; width:calc(100% - 12px); }
+  .libro td { position:relative; padding:3px 8px; font-size:12px; }
+  .barra { position:absolute; top:2px; bottom:2px; opacity:.16; border-radius:4px; }
+  .ticket { display:flex; gap:6px; padding:10px 14px; align-items:center; flex-wrap:wrap; }
+  .ticket input { width:80px; }
+  .btn-c { background:var(--up); color:#fff; font-weight:600; } .btn-v { background:var(--down); color:#fff; font-weight:600; }
+  .btn-c:hover { background:#239160; } .btn-v:hover { background:#d65436; }
+  #msg { padding:0 14px 10px; color:var(--acc); font-size:12px; min-height:18px; }
+
+  #abajo { grid-column:2; grid-row:3; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+  #abajo .tabs { display:flex; gap:4px; padding:8px 10px; border-bottom:1px solid var(--line); align-items:center; }
+  #abajo .tabs [data-t] { border-radius:0; padding:6px 4px; margin-right:12px; font-weight:500; color:var(--mute); }
+  #abajo .tabs [data-t].on { background:none; color:var(--ink); box-shadow:inset 0 -2px 0 var(--gold); }
+  #abajo .tabs [data-t]:hover { background:none; color:var(--ink); }
+  #abajo .cuerpo { overflow:auto; flex:1; }
+  #abajo td { border-bottom:1px solid var(--hover); }
+  .resumen { display:flex; gap:12px; padding:10px; }
+  .resumen > div { background:var(--bg); border-radius:10px; padding:8px 14px; min-width:130px; }
+  .resumen span { font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+  .resumen b { font:500 18px/1.3 "IBM Plex Mono", monospace; display:block; }
+  #btnReset { border:1px solid var(--line); }
+  #pie { grid-column:1/3; font-size:11px; color:var(--mute); padding:4px 4px; }
+  #pie a { color:var(--mute); }
+
+  /* divisores redimensionables */
+  .div { position:fixed; z-index:30; display:flex; align-items:center; justify-content:center; touch-action:none; }
+  .div.v { cursor:col-resize; } .div.h { cursor:row-resize; }
+  .div::after { content:""; border-radius:999px; background:var(--line); transition:background .15s, transform .15s; }
+  .div.v::after { width:3px; height:36px; } .div.h::after { width:36px; height:3px; }
+  .div:hover::after, .div.activo::after { background:var(--gold); transform:scale(1.4); }
+  .div-pane { position:absolute; left:0; right:0; top:-5px; height:10px; z-index:7; cursor:row-resize; touch-action:none; }
+  .div-pane::after { content:""; position:absolute; left:50%; top:3px; width:36px; height:3px; margin-left:-18px; border-radius:999px; background:var(--line); }
+  .div-pane:hover::after, .div-pane.activo::after { background:var(--gold); }
+  body.arrastrando { user-select:none; }
+  body.arrastrando.cv, body.arrastrando.cv * { cursor:col-resize !important; }
+  body.arrastrando.ch, body.arrastrando.ch * { cursor:row-resize !important; }
+  @media (max-width: 900px) { .div, .div-pane { display:none !important; } }
+
+  @media (max-width: 900px) {
+    body { grid-template-columns:1fr; grid-template-rows:auto 60vh auto auto auto; overflow:auto; padding:0 8px; }
+    #top { flex-wrap:wrap; padding:8px 0; } .marca { width:auto; } #tools { display:none; }
+    #centro, #der, #abajo, #pie, #top { grid-column:1; grid-row:auto; }
+  }
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div class="marca">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="10" fill="#1f1c16"/>
+      <path d="M4 25 L12 13 L16 18 L21 9 L30 25 Z" fill="#c98a00"/><path d="M4 25 L12 13 L16 18 L13 25 Z" fill="#1e7b4f"/></svg>
+    <div><b>Ávila</b><small>Bolsa de Caracas</small></div>
+  </div>
+  <input id="buscar" list="simbolos" placeholder="Símbolo" autocomplete="off"><datalist id="simbolos"></datalist>
+  <div class="sep"></div>
+  <span id="tfs" class="seg"></span>
+  <div class="sep"></div>
+  <select id="tipo" title="Tipo de gráfico">
+    <option value="velas">🕯 Velas</option><option value="ha">Heikin Ashi</option>
+    <option value="barras">Barras</option><option value="linea">Línea</option><option value="area">Área</option>
+  </select>
+  <div class="menu" id="mInd"><button>ƒx Indicadores</button>
+    <div class="lista" id="listaInd"></div></div>
+  <button id="btnLog" title="Escala logarítmica">LOG</button>
+  <div class="sep"></div>
+  <select id="moneda" title="Moneda"><option value="bs">Bs</option><option value="bcv">USD · BCV oficial</option><option value="paralelo">USD · Paralelo</option></select>
+  <span class="grow"></span>
+  <span id="estado" class="mute"></span>
+  <button id="btnAct" title="Actualizar datos">↻</button>
+  <button id="btnFull" title="Pantalla completa">⛶</button>
+</div>
+
+
+<div id="centro" class="tarjeta">
+<div id="tools">
+  <button data-h="cursor" class="on" title="Cursor">↖</button>
+  <button data-h="hline" title="Línea horizontal (clic en el gráfico)">─</button>
+  <button data-h="trend" title="Línea de tendencia (2 clics)">╱</button>
+  <button id="btnBorrar" title="Borrar dibujos de este símbolo">✕</button>
+</div>
+
+  <div id="main"><div class="leyenda" id="ley"></div></div>
+  <div class="pane" id="pRSI"><div class="div-pane" data-p="rsi" title="Arrastra para cambiar el alto · doble clic restaura"></div><div class="leyenda" id="leyRSI"></div></div>
+  <div class="pane" id="pMACD"><div class="div-pane" data-p="macd" title="Arrastra para cambiar el alto · doble clic restaura"></div><div class="leyenda" id="leyMACD"></div></div>
+  <div id="rangos"></div>
+</div>
+
+<div id="der">
+  <div id="lista" class="tarjeta"><h3>Mercado</h3>
+  <div id="watch"><table><thead><tr><th>Símbolo</th><th>Último</th><th>Var %</th></tr></thead><tbody></tbody></table></div></div>
+  <div id="ficha" class="tarjeta"></div>
+</div>
+
+<div id="abajo" class="tarjeta">
+  <div class="tabs"><button data-t="cartera" class="on">Cartera</button><button data-t="ordenes">Órdenes</button>
+    <span class="grow"></span><input id="capital" type="number" value="100000" style="width:110px">
+    <button id="btnReset">Reiniciar cartera</button></div>
+  <div class="cuerpo" id="tabCuerpo"></div>
+</div>
+
+<div id="pie">Paper trading: dinero simulado. Datos © Bolsa de Valores de Caracas, solo uso personal (no redistribuir). Tasa BCV. No es asesoría financiera. Gráficos: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> © TradingView, Inc. (Apache 2.0).</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const LC = LightweightCharts;
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+const TFS = [['S1','1m'],['S5','5m'],['S15','15m'],['D','D'],['W','S'],['M','M']];
+const MON = {bs:'Bs', bcv:'USD BCV', paralelo:'USD paralelo'};
+const INDS = { vol:'Volumen', sma20:'SMA 20', sma50:'SMA 50', ema20:'EMA 20', ema200:'EMA 200', bb:'Bandas de Bollinger (20,2)', rsi:'RSI (14)', macd:'MACD (12,26,9)' };
+const COL = { sma20:'#c98a00', sma50:'#0e6e8c', ema20:'#7c3aed', ema200:'#9a3412', bb:'#64748b' };
+const UP = '#1e7b4f', DOWN = '#c4452b', ACC = '#0e6e8c';
+const NOM_IDX = { IBC:'IBC', FIN:'Financiero', IND:'Industrial' };
+
+let S = { simb: store.get('simb', 'BVCC'), tf: TFS.some(t => t[0] === store.get('tf')) ? store.get('tf') : 'D', tipo: store.get('tipo', 'velas'),
+          ind: store.get('ind', {vol:true, sma20:true, sma50:true}), log: store.get('log', false), herr: 'cursor' };
+let mercado = [], tasas = {}, info = {}, velas = [], seriePrincipal = null, overlays = [], volSerie = null, tendPend = null, cartera = null;
+
+const mon = () => $('#moneda').value;
+const tasaHoy = () => mon() === 'bs' ? 1 : tasas[mon()]?.usd;
+const dec = v => { const a = Math.abs(v); return a === 0 || a >= 1 ? 2 : a >= .01 ? 4 : 6; };
+const fmt = (v, d) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('es-VE', {minimumFractionDigits: d ?? dec(v), maximumFractionDigits: d ?? dec(v)});
+const money = v => { if (v == null) return '—'; const k = tasaHoy(); return k ? (mon() === 'bs' ? '' : '$') + fmt(v / k) : '—'; };
+const fmtK = v => v == null ? '—' : v >= 1e9 ? fmt(v/1e9) + 'B' : v >= 1e6 ? fmt(v/1e6) + 'M' : v >= 1e3 ? fmt(v/1e3) + 'K' : fmt(v, 0);
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
+const api = (u, body) => fetch(u, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {}).then(r => r.json());
+const intradia = () => S.tf.startsWith('S');
+
+// ---------- Gráficos ----------
+const base = { autoSize:true, layout:{background:{color:'#fffdf8'}, textColor:'#8a8172', fontSize:11, fontFamily:'IBM Plex Mono, monospace', attributionLogo:false},
+  grid:{vertLines:{visible:false}, horzLines:{color:'#f1ebdf', style:LC.LineStyle.Dotted}},
+  crosshair:{mode:LC.CrosshairMode.Magnet,
+    vertLine:{color:'rgba(14,110,140,.55)', style:LC.LineStyle.Dashed, labelBackgroundColor:'#1f1c16'},
+    horzLine:{color:'rgba(14,110,140,.55)', style:LC.LineStyle.Dashed, labelBackgroundColor:'#1f1c16'}},
+  rightPriceScale:{borderVisible:false}, leftPriceScale:{borderVisible:false},
+  timeScale:{borderVisible:false, rightOffset:6, timeVisible:true, secondsVisible:false},
+  localization:{locale:'es-VE', priceFormatter: p => fmt(p)} };
+const chart = LC.createChart($('#main'), base);
+base.rightPriceScale.minimumWidth = 80;  // misma anchura de escala => paneles alineados
+const sub = {...base, layout:{...base.layout, attributionLogo:false}, timeScale:{...base.timeScale, visible:false}};
+const cRSI = LC.createChart($('#pRSI'), sub);
+const cMACD = LC.createChart($('#pMACD'), sub);
+const sincronizar = () => { const r = chart.timeScale().getVisibleLogicalRange(); if (r) [cRSI, cMACD].forEach(c => c.timeScale().setVisibleLogicalRange(r)); };
+const sRSI = cRSI.addLineSeries({color:'#7c3aed', lineWidth:1.5, priceLineVisible:false});
+sRSI.createPriceLine({price:70, color:'#c4452b', lineStyle:2, lineWidth:1, axisLabelVisible:false});
+sRSI.createPriceLine({price:30, color:'#1e7b4f', lineStyle:2, lineWidth:1, axisLabelVisible:false});
+const sMH = cMACD.addHistogramSeries({priceLineVisible:false});
+const sM = cMACD.addLineSeries({color:'#0e6e8c', lineWidth:1.5, priceLineVisible:false});
+const sMS = cMACD.addLineSeries({color:'#c98a00', lineWidth:1.5, priceLineVisible:false});
+for (const c of [cRSI, cMACD]) {
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r => r && c.timeScale().setVisibleLogicalRange(r));
+}
+
+// ---------- Indicadores ----------
+const sma = (a, n) => a.map((_, i) => i < n-1 ? null : a.slice(i-n+1, i+1).reduce((s, x) => s + x, 0) / n);
+function ema(a, n) { const k = 2/(n+1); let e = null; return a.map((x, i) => { if (x == null) return null;
+  e = e == null ? x : x*k + e*(1-k); return i < n-1 ? null : e; }); }
+function rsi(a, n=14) { let g=0, l=0; const o = a.map(() => null);
+  for (let i = 1; i < a.length; i++) { const d = a[i]-a[i-1], up = Math.max(d,0), dn = Math.max(-d,0);
+    if (i <= n) { g += up/n; l += dn/n; if (i === n) o[i] = l === 0 ? 100 : 100 - 100/(1+g/l); }
+    else { g = (g*(n-1)+up)/n; l = (l*(n-1)+dn)/n; o[i] = l === 0 ? 100 : 100 - 100/(1+g/l); } } return o; }
+function bollinger(a, n=20, k=2) { const m = sma(a, n); return a.map((_, i) => { if (m[i] == null) return null;
+  const sl = a.slice(i-n+1, i+1), sd = Math.sqrt(sl.reduce((s, x) => s + (x-m[i])**2, 0)/n);
+  return {m:m[i], u:m[i]+k*sd, l:m[i]-k*sd}; }); }
+function heikin(v) { const o = []; v.forEach((c, i) => { const close = (c.open+c.high+c.low+c.close)/4;
+  const open = i ? (o[i-1].open + o[i-1].close)/2 : (c.open+c.close)/2;
+  o.push({time:c.time, open, close, high:Math.max(c.high, open, close), low:Math.min(c.low, open, close)}); }); return o; }
+const serie = (vals) => velas.map((c, i) => vals[i] == null ? {time:c.time} : {time:c.time, value:vals[i]});
+
+// ---------- Pintar ----------
+function pintar() {
+  if (seriePrincipal) chart.removeSeries(seriePrincipal);
+  overlays.forEach(s => chart.removeSeries(s)); overlays = [];
+  if (volSerie) { chart.removeSeries(volSerie); volSerie = null; }
+  const ops = {priceLineVisible:true, lastValueVisible:true};
+  const datos = S.tipo === 'ha' ? heikin(velas) : velas;
+  if (S.tipo === 'velas' || S.tipo === 'ha')
+    seriePrincipal = chart.addCandlestickSeries({...ops, upColor:'#fffdf8', downColor:DOWN, borderUpColor:UP, borderDownColor:DOWN, borderVisible:true, wickUpColor:UP, wickDownColor:DOWN});
+  else if (S.tipo === 'barras') seriePrincipal = chart.addBarSeries({...ops, upColor:UP, downColor:DOWN});
+  else if (S.tipo === 'linea') seriePrincipal = chart.addLineSeries({...ops, color:ACC, lineWidth:2});
+  else seriePrincipal = chart.addAreaSeries({...ops, lineColor:ACC, topColor:'rgba(14,110,140,.22)', bottomColor:'rgba(14,110,140,0)', lineWidth:2});
+  const minimo = Math.min(...velas.map(c => c.low).filter(x => x > 0), Infinity), p = isFinite(minimo) ? dec(minimo) : 2;
+  seriePrincipal.applyOptions({priceFormat:{type:'price', precision:p, minMove:10 ** -p}});
+  seriePrincipal.setData(['linea','area'].includes(S.tipo) ? datos.map(c => ({time:c.time, value:c.close})) : datos);
+  chart.priceScale('right').applyOptions({mode: S.log ? LC.PriceScaleMode.Logarithmic : LC.PriceScaleMode.Normal, scaleMargins:{top:.08, bottom: S.ind.vol ? .22 : .06}});
+
+  const cierres = velas.map(c => c.close);
+  if (S.ind.vol && velas.some(c => c.volume)) {
+    volSerie = chart.addHistogramSeries({priceScaleId:'vol', priceFormat:{type:'volume'}, priceLineVisible:false, lastValueVisible:false});
+    chart.priceScale('vol').applyOptions({scaleMargins:{top:.82, bottom:0}});
+    volSerie.setData(velas.map(c => ({time:c.time, value:c.volume || 0, color: c.close >= c.open ? 'rgba(30,123,79,.28)' : 'rgba(196,69,43,.28)'})));
+  }
+  const linea = (vals, color, w=1.5) => { const s = chart.addLineSeries({color, lineWidth:w, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false}); s.setData(serie(vals)); overlays.push(s); };
+  if (S.ind.sma20) linea(sma(cierres, 20), COL.sma20);
+  if (S.ind.sma50) linea(sma(cierres, 50), COL.sma50);
+  if (S.ind.ema20) linea(ema(cierres, 20), COL.ema20);
+  if (S.ind.ema200) linea(ema(cierres, 200), COL.ema200);
+  if (S.ind.bb) { const b = bollinger(cierres); linea(b.map(x => x?.u), COL.bb, 1); linea(b.map(x => x?.m), 'rgba(100,116,139,.5)', 1); linea(b.map(x => x?.l), COL.bb, 1); }
+
+  $('#pRSI').classList.toggle('ver', !!S.ind.rsi); $('#pMACD').classList.toggle('ver', !!S.ind.macd);
+  if (S.ind.rsi) sRSI.setData(serie(rsi(cierres)));
+  if (S.ind.macd) { const f = ema(cierres, 12), l = ema(cierres, 26), m = f.map((x, i) => x != null && l[i] != null ? x - l[i] : null);
+    const sig = ema(m.map(x => x ?? null).filter(x => x != null), 9); const pad = m.length - sig.length; const s2 = m.map((_, i) => i < pad ? null : sig[i-pad]);
+    sM.setData(serie(m)); sMS.setData(serie(s2));
+    sMH.setData(velas.map((c, i) => m[i] == null || s2[i] == null ? {time:c.time} : {time:c.time, value:m[i]-s2[i], color: m[i]-s2[i] >= 0 ? 'rgba(30,123,79,.55)' : 'rgba(196,69,43,.55)'})); }
+
+  marcadores(); dibujos(); leyenda();
+  requestAnimationFrame(sincronizar);
+}
+
+function marcadores() {
+  if (!cartera || !seriePrincipal || intradia()) { seriePrincipal?.setMarkers([]); return; }
+  const fechas = new Set(velas.map(c => c.time));
+  const m = cartera.ordenes.filter(o => o.simbolo === S.simb).map(o => {
+    let t = o.momento.slice(0, 10); if (!fechas.has(t)) t = velas.at(-1)?.time; if (S.tf !== 'D') t = velas.find(c => c.time >= o.momento.slice(0,10))?.time ?? velas.at(-1)?.time;
+    return {time:t, position: o.lado === 'compra' ? 'belowBar' : 'aboveBar', color: o.lado === 'compra' ? UP : DOWN,
+            shape: o.lado === 'compra' ? 'arrowUp' : 'arrowDown', text: `${o.lado === 'compra' ? 'C' : 'V'} ${o.cantidad}`}; })
+    .filter(x => x.time).sort((a, b) => a.time < b.time ? -1 : 1);
+  seriePrincipal.setMarkers(m);
+}
+
+// ---------- Leyenda tipo TradingView ----------
+function leyenda(p) {
+  const c = (p && p.time != null && p.seriesData.get(seriePrincipal)) || null;
+  const i = c ? velas.findIndex(v => v.time === p.time) : velas.length - 1;
+  const v = velas[i]; if (!v) { $('#ley').innerHTML = `<div class="t">${S.simb}</div><div class="mute">Sin datos todavía para esta temporalidad.</div>`; return; }
+  const prev = velas[i-1]?.close ?? v.open, ch = v.close - prev, chp = prev ? ch/prev*100 : 0, k = cls(ch);
+  const nombre = NOM_IDX[S.simb] ? 'Índice ' + NOM_IDX[S.simb] : (mercado.find(m => m.simbolo === S.simb)?.nombre_largo || '');
+  let ind = '';
+  const cierres = velas.slice(0, i+1).map(x => x.close);
+  if (S.ind.sma20) ind += `<span style="color:${COL.sma20}">SMA20 ${fmt(sma(cierres,20).at(-1))}</span>`;
+  if (S.ind.sma50) ind += `<span style="color:${COL.sma50}">SMA50 ${fmt(sma(cierres,50).at(-1))}</span>`;
+  if (S.ind.ema20) ind += `<span style="color:${COL.ema20}">EMA20 ${fmt(ema(cierres,20).at(-1))}</span>`;
+  if (S.ind.ema200) ind += `<span style="color:${COL.ema200}">EMA200 ${fmt(ema(cierres,200).at(-1))}</span>`;
+  $('#ley').innerHTML = `<div><span class="t">${S.simb}</span><span class="mute">${nombre} · ${intradia() ? 'Sesión ' + (info.fecha_sesion || '') + ' · ' : ''}${TFS.find(t => t[0] === S.tf)[1]} · BVC · ${MON[mon()]}</span></div>
+    <div><span>O <b class="${k}">${fmt(v.open)}</b></span><span>H <b class="${k}">${fmt(v.high)}</b></span><span>L <b class="${k}">${fmt(v.low)}</b></span>
+    <span>C <b class="${k}">${fmt(v.close)}</b></span><span class="${k}">${ch >= 0 ? '+' : ''}${fmt(ch)} (${ch >= 0 ? '+' : ''}${fmt(chp, 2)}%)</span>
+    ${v.volume ? `<span class="mute">Vol ${fmtK(v.volume)}</span>` : ''}</div><div>${ind}</div>`;
+  if (S.ind.rsi) { const r = rsi(cierres).at(-1); $('#leyRSI').innerHTML = `<span style="color:#7c3aed">RSI 14 · ${fmt(r, 2)}</span>`; }
+  if (S.ind.macd) $('#leyMACD').innerHTML = `<span style="color:#0e6e8c">MACD 12 26 9</span>`;
+}
+chart.subscribeCrosshairMove(leyenda);
+
+// ---------- Dibujos ----------
+const claveDib = () => `dib:${S.simb}:${intradia() ? 'i' : 'd'}`;
+let dibSeries = [], dibLineas = [];
+function dibujos() {
+  dibSeries.forEach(s => chart.removeSeries(s)); dibSeries = [];
+  dibLineas.forEach(l => seriePrincipal?.removePriceLine(l)); dibLineas = [];
+  for (const d of store.get(claveDib(), [])) {
+    if (d.t === 'h') dibLineas.push(seriePrincipal.createPriceLine({price:d.p, color:'#c98a00', lineWidth:1, lineStyle:0, axisLabelVisible:true}));
+    if (d.t === 'tr') { const s = chart.addLineSeries({color:'#c98a00', lineWidth:2, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false, autoscaleInfoProvider:() => null});
+      try { s.setData(d.pts); dibSeries.push(s); } catch { chart.removeSeries(s); } }
+  }
+}
+chart.subscribeClick(p => {
+  if (S.herr === 'cursor' || !p.point || p.time == null || !seriePrincipal) return;
+  const precio = seriePrincipal.coordinateToPrice(p.point.y); if (precio == null) return;
+  const lista = store.get(claveDib(), []);
+  if (S.herr === 'hline') { lista.push({t:'h', p:precio}); store.set(claveDib(), lista); herramienta('cursor'); dibujos(); return; }
+  if (S.herr === 'trend') {
+    if (!tendPend) { tendPend = {time:p.time, value:precio}; return; }
+    const pts = [tendPend, {time:p.time, value:precio}].sort((a, b) => a.time < b.time ? -1 : 1); tendPend = null;
+    if (pts[0].time === pts[1].time) return;
+    lista.push({t:'tr', pts}); store.set(claveDib(), lista); herramienta('cursor'); dibujos();
+  }
+});
+function herramienta(h) { S.herr = h; tendPend = null; document.querySelectorAll('#tools [data-h]').forEach(b => b.classList.toggle('on', b.dataset.h === h)); }
+document.querySelectorAll('#tools [data-h]').forEach(b => b.onclick = () => herramienta(b.dataset.h));
+$('#btnBorrar').onclick = () => { store.set(claveDib(), []); dibujos(); };
+
+// ---------- Datos ----------
+async function cargarVelas() {
+  const d = await api(`/api/velas?simb=${encodeURIComponent(S.simb)}&tf=${S.tf}&moneda=${mon()}`);
+  velas = d.velas; info = d;
+  chart.applyOptions({timeScale:{timeVisible: d.intradia}});
+  const av = [];
+  if (d.intradia) av.push(velas.length ? `Última sesión (${d.fecha_sesion}), precios minuto a minuto de la BVC.` : 'Sin datos de sesión todavía.');
+  else if (d.aproximadas) av.push('La BVC solo publica cierres diarios: velas sin mechas salvo las sesiones que el recolector guardó completas.');
+  if (mon() !== 'bs') av.push(`Convertido con la tasa ${mon() === 'bcv' ? 'oficial BCV' : 'paralela'} de cada día` + (mon() === 'paralelo' && d.tasa_desde ? ` (disponible desde ${d.tasa_desde})` : '') + '.');
+  $('#aviso').textContent = av.join(' ');
+  document.querySelectorAll('[data-r]').forEach(b => b.style.display = d.intradia ? 'none' : '');
+  document.querySelectorAll('[data-r]').forEach(b => { const v = b.dataset.r, m = v === 'ytd' ? 1 : +v;
+    b.disabled = (S.tf === 'W' && m > 0 && m < 1) || (S.tf === 'M' && m > 0 && m < 3); b.style.opacity = b.disabled ? .35 : 1; });
+  pintar(); chart.timeScale().fitContent();
+  if (!d.intradia) rango(S.tf === 'D' ? 6 : S.tf === 'W' ? 12 : 0);
+}
+function rango(meses) {
+  if (!velas.length) return;
+  const fin = velas.at(-1).time;
+  if (!meses) { chart.timeScale().fitContent(); return sincronizar(); }
+  const f = new Date(fin + 'T00:00:00Z');
+  if (meses === 'ytd') f.setUTCMonth(0, 1); else if (meses < 1) f.setUTCDate(f.getUTCDate() - 7); else f.setUTCMonth(f.getUTCMonth() - meses);
+  const desde = f.toISOString().slice(0, 10), primero = velas.find(v => v.time >= desde)?.time ?? velas[0].time;
+  chart.timeScale().setVisibleRange({from: primero, to: fin}); sincronizar();
+}
+
+async function cargarMercado() {
+  const d = await api('/api/mercado'); mercado = d.filas; tasas = d.tasa;
+  $('#estado').innerHTML = (d.abierto ? '<span class="up">● Abierto</span>' : '<span class="down">● Cerrado</span>') +
+    (tasas.bcv ? ` · BCV ${fmt(tasas.bcv.usd, 2)}` : '') + (tasas.paralelo ? ` · Paralelo ${fmt(tasas.paralelo.usd, 2)}` : '') +
+    (d.estado.ultima ? ` · act. ${d.estado.ultima.slice(11,16)}` : '');
+  const idx = await Promise.all(Object.keys(NOM_IDX).map(async k => { const v = (await api(`/api/velas?simb=${k}&tf=D`)).velas;
+    const u = v.at(-1), p = v.at(-2); return {simbolo:k, nombre:NOM_IDX[k], precio:u?.close, var_rel: u && p ? (u.close/p.close-1)*100 : null, idx:true}; }));
+  $('#simbolos').innerHTML = [...idx, ...mercado].map(m => `<option value="${m.simbolo}">${m.nombre || ''}</option>`).join('');
+  const fila = m => `<tr data-s="${m.simbolo}" class="${m.simbolo === S.simb ? 'sel' : ''}"><td><b>${m.simbolo}</b></td>
+    <td>${money(m.precio)}</td><td><span class="chip ${cls(m.var_rel) || 'cero'}">${m.var_rel == null ? '—' : (m.var_rel > 0 ? '+' : '') + fmt(m.var_rel, 2) + '%'}</span></td></tr>`;
+  $('#watch tbody').innerHTML = `<tr class="grupo"><td colspan="3">ÍNDICES</td></tr>${idx.map(fila).join('')}
+    <tr class="grupo"><td colspan="3">ACCIONES</td></tr>${[...mercado].sort((a, b) => (b.monto||0) - (a.monto||0)).map(fila).join('')}`;
+  ficha();
+}
+
+async function ficha() {
+  if (NOM_IDX[S.simb]) { $('#ficha').innerHTML = `<h3>${NOM_IDX[S.simb]}</h3><div class="stats mute" style="display:block">Índice de la Bolsa de Caracas. Elige una acción para operar.</div>`; return; }
+  const m = mercado.find(x => x.simbolo === S.simb) || {}; const d = await api('/api/detalle?simb=' + encodeURIComponent(S.simb));
+  const maxV = Math.max(1, ...(d.libro || []).flatMap(n => [n.bid_vol || 0, n.ask_vol || 0]));
+  const libro = (d.libro || []).filter(n => n.bid || n.ask).map(n => `<tr>
+    <td>${n.bid_vol ? `<div class="barra" style="right:0;width:${n.bid_vol/maxV*100}%;background:var(--up)"></div>` : ''}${fmtK(n.bid_vol)}</td><td class="up">${money(n.bid)}</td>
+    <td class="down">${money(n.ask)}</td><td>${n.ask_vol ? `<div class="barra" style="left:0;width:${n.ask_vol/maxV*100}%;background:var(--down)"></div>` : ''}${fmtK(n.ask_vol)}</td></tr>`).join('');
+  $('#ficha').innerHTML = `<h3>${S.simb} · ${d.nombre || m.nombre_largo || ''}</h3>
+    <div class="stats"><div><span class="mute">Apertura</span>${money(d.apertura)}</div><div><span class="mute">Máx</span>${money(d.max)}</div>
+    <div><span class="mute">Mín</span>${money(d.min)}</div><div><span class="mute">Medio</span>${money(d.medio)}</div>
+    <div><span class="mute">Máx 52s</span>${money(d.max_ano)}</div><div><span class="mute">Mín 52s</span>${money(d.min_ano)}</div>
+    <div><span class="mute">Cap. USD</span>${fmtK(d.cap_usd)}</div><div><span class="mute">Acciones</span>${fmtK(d.acciones)}</div></div>
+    <h3>Libro de órdenes</h3><table class="libro"><thead><tr><th>Cant.</th><th>Compra</th><th>Venta</th><th>Cant.</th></tr></thead><tbody>${libro || '<tr><td colspan="4" class="mute">Sin ofertas</td></tr>'}</tbody></table>
+    <div class="ticket"><input id="cant" type="number" min="1" step="1" value="10"><button class="btn-c" id="bC">Comprar</button><button class="btn-v" id="bV">Vender</button></div>
+    <div id="msg"></div>`;
+  $('#bC').onclick = () => operar('compra'); $('#bV').onclick = () => operar('venta');
+}
+
+async function operar(lado) {
+  const n = +$('#cant').value; const r = await api('/api/orden', {simbolo:S.simb, lado, cantidad:n});
+  $('#msg').textContent = r.error || `${lado === 'compra' ? 'Compraste' : 'Vendiste'} ${n} ${S.simb} a ${money(r.precio)} · comisión ${money(r.comision)}`;
+  await cargarCartera(); marcadores();
+}
+
+let tab = 'cartera';
+async function cargarCartera() { cartera = await api('/api/cartera'); pintarTab(); }
+function pintarTab() {
+  const c = cartera; if (!c) return;
+  document.querySelectorAll('#abajo [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
+  const res = `<div class="resumen"><div><span class="mute">Valor total</span><b>${money(c.total)}</b></div>
+    <div><span class="mute">Rendimiento</span><b class="${cls(c.rendimiento_pct)}">${fmt(c.rendimiento_pct, 2)}%</b></div>
+    <div><span class="mute">Efectivo</span><b>${money(c.efectivo)}</b></div><div><span class="mute">En acciones</span><b>${money(c.valor_posiciones)}</b></div></div>`;
+  $('#tabCuerpo').innerHTML = tab === 'cartera' ? res + `<table><thead><tr><th>Símbolo</th><th>Cantidad</th><th>Costo</th><th>Precio</th><th>Valor</th><th>G/P</th><th>G/P %</th></tr></thead><tbody>
+    ${c.posiciones.map(p => `<tr data-s="${p.simbolo}" style="cursor:pointer"><td><b>${p.simbolo}</b></td><td>${fmt(p.cantidad,0)}</td><td>${money(p.costo)}</td><td>${money(p.precio_actual)}</td>
+    <td>${money(p.valor)}</td><td class="${cls(p.ganancia)}">${money(p.ganancia)}</td><td class="${cls(p.ganancia)}">${fmt(p.ganancia_pct, 2)}%</td></tr>`).join('') || '<tr><td colspan="7" class="mute">Sin posiciones. Elige una acción y pulsa Comprar.</td></tr>'}</tbody></table>`
+  : `<table><thead><tr><th>Fecha</th><th>Símbolo</th><th>Lado</th><th>Cantidad</th><th>Precio</th><th>Comisión</th></tr></thead><tbody>
+    ${c.ordenes.map(o => `<tr><td>${o.momento.slice(0,16).replace('T',' ')}</td><td>${o.simbolo}</td><td class="${o.lado === 'compra' ? 'up' : 'down'}">${o.lado}</td>
+    <td>${fmt(o.cantidad,0)}</td><td>${money(o.precio)}</td><td>${money(o.comision)}</td></tr>`).join('') || '<tr><td colspan="6" class="mute">Sin órdenes</td></tr>'}</tbody></table>`;
+}
+
+function elegir(s) { s = (s || '').toUpperCase().trim(); if (!s) return; S.simb = s; store.set('simb', s); $('#buscar').value = '';
+  document.querySelectorAll('#watch tr[data-s]').forEach(r => r.classList.toggle('sel', r.dataset.s === s)); cargarVelas(); ficha(); }
+
+// ---------- Controles ----------
+$('#tfs').innerHTML = '<span class="mute" style="margin:0 4px">Sesión</span>' + TFS.map(([k, n]) => (k === 'D' ? '<span class="sep" style="display:inline-block;vertical-align:middle"></span>' : '') + `<button data-tf="${k}">${n}</button>`).join('');
+const marcarTf = () => document.querySelectorAll('[data-tf]').forEach(b => b.classList.toggle('on', b.dataset.tf === S.tf));
+$('#tfs').onclick = e => { const k = e.target.dataset.tf; if (!k) return; S.tf = k; store.set('tf', k); marcarTf(); cargarVelas(); };
+$('#rangos').innerHTML = [['1S',.25],['1M',1],['3M',3],['6M',6],['YTD','ytd'],['1A',12],['Todo',0]].map(([n, v]) => `<button data-r="${v}">${n}</button>`).join('') + '<span id="aviso"></span>';
+$('#rangos').onclick = e => { const v = e.target.dataset.r; if (v == null || e.target.disabled) return; rango(v === 'ytd' ? 'ytd' : +v); };
+$('#tipo').value = S.tipo; $('#tipo').onchange = e => { S.tipo = e.target.value; store.set('tipo', S.tipo); pintar(); };
+$('#listaInd').innerHTML = Object.entries(INDS).map(([k, n]) => `<label><input type="checkbox" data-i="${k}" ${S.ind[k] ? 'checked' : ''}>${n}</label>`).join('');
+$('#listaInd').onchange = e => { S.ind[e.target.dataset.i] = e.target.checked; store.set('ind', S.ind); pintar(); };
+$('#mInd > button').onclick = e => { e.stopPropagation(); $('#mInd').classList.toggle('abierto'); };
+document.addEventListener('click', e => { if (!$('#mInd').contains(e.target)) $('#mInd').classList.remove('abierto'); });
+$('#btnLog').classList.toggle('on', S.log); $('#btnLog').onclick = () => { S.log = !S.log; store.set('log', S.log); $('#btnLog').classList.toggle('on', S.log); pintar(); };
+$('#buscar').onkeydown = e => { if (e.key === 'Enter') elegir(e.target.value); };
+$('#buscar').onchange = e => { if ([...$('#simbolos').options].some(o => o.value === e.target.value.toUpperCase())) elegir(e.target.value); };
+$('#watch').onclick = e => { const r = e.target.closest('tr[data-s]'); if (r) elegir(r.dataset.s); };
+$('#tabCuerpo').onclick = e => { const r = e.target.closest('tr[data-s]'); if (r) elegir(r.dataset.s); };
+document.querySelectorAll('#abajo [data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; pintarTab(); });
+$('#moneda').value = store.get('moneda', 'bs');
+$('#moneda').onchange = () => { store.set('moneda', mon()); cargarMercado(); pintarTab(); cargarVelas(); };
+$('#btnFull').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+$('#btnAct').onclick = async () => { $('#btnAct').textContent = '…'; await api('/api/actualizar', {}); await Promise.all([cargarMercado(), cargarVelas(), cargarCartera()]); $('#btnAct').textContent = '⟳'; };
+$('#btnReset').onclick = async () => { if (!confirm('¿Borrar todas las órdenes simuladas y empezar de nuevo?')) return; await api('/api/reiniciar', {capital:+$('#capital').value}); await cargarCartera(); marcadores(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') herramienta('cursor'); });
+
+
+// ---------- Divisores redimensionables (tipo Blender) ----------
+const LAY_DEF = {izq:300, abajo:190, ficha:null, rsi:90, macd:90};
+let LAY = {...LAY_DEF, ...store.get('layout', {})};
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const divs = {};
+for (const [k, eje, t] of [['izq','v','Arrastra: ancho del panel izquierdo'], ['abajo','h','Arrastra: alto de la cartera'], ['ficha','h','Arrastra: lista / ficha']]) {
+  const d = document.createElement('div'); d.className = 'div ' + eje; d.title = t + ' · doble clic restaura';
+  document.body.appendChild(d); divs[k] = d;
+}
+function colocar() {
+  const r = id => $(id).getBoundingClientRect();
+  const der = r('#der'), cen = r('#centro'), aba = r('#abajo'), lis = r('#lista'), fic = r('#ficha');
+  Object.assign(divs.izq.style, {left: der.right + 'px', top: der.top + 'px', width: Math.max(6, cen.left - der.right) + 'px', height: der.height + 'px'});
+  Object.assign(divs.abajo.style, {left: cen.left + 'px', top: cen.bottom + 'px', width: cen.width + 'px', height: Math.max(6, aba.top - cen.bottom) + 'px'});
+  Object.assign(divs.ficha.style, {left: der.left + 'px', top: lis.bottom + 'px', width: der.width + 'px', height: Math.max(6, fic.top - lis.bottom) + 'px'});
+}
+function aplicarLayout() {
+  document.body.style.setProperty('--izq', LAY.izq + 'px');
+  document.body.style.setProperty('--abajo', LAY.abajo + 'px');
+  if (LAY.ficha) document.body.style.setProperty('--ficha', LAY.ficha + 'px'); else document.body.style.removeProperty('--ficha');
+  $('#pRSI').style.height = LAY.rsi + 'px'; $('#pMACD').style.height = LAY.macd + 'px';
+  colocar();
+}
+function arrastrar(el, eje, mover, clave) {
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, y0 = e.clientY, ini = {...LAY, fichaPx: $('#ficha').offsetHeight};
+    el.classList.add('activo'); document.body.classList.add('arrastrando', eje === 'v' ? 'cv' : 'ch');
+    const mv = ev => { mover(ev.clientX - x0, ev.clientY - y0, ini); aplicarLayout(); };
+    const up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up);
+      el.classList.remove('activo'); document.body.classList.remove('arrastrando', 'cv', 'ch'); store.set('layout', LAY); };
+    el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up);
+  });
+  el.addEventListener('dblclick', () => { LAY[clave] = LAY_DEF[clave]; store.set('layout', LAY); aplicarLayout(); });
+}
+arrastrar(divs.izq, 'v', (dx, dy, i) => LAY.izq = clamp(i.izq + dx, 200, innerWidth * .5), 'izq');
+arrastrar(divs.abajo, 'h', (dx, dy, i) => LAY.abajo = clamp(i.abajo - dy, 44, innerHeight - 60 - 26 - 180), 'abajo');
+arrastrar(divs.ficha, 'h', (dx, dy, i) => LAY.ficha = clamp(i.fichaPx - dy, 120, $('#der').offsetHeight - 130), 'ficha');
+document.querySelectorAll('.div-pane').forEach(d => arrastrar(d, 'h', (dx, dy, i) => LAY[d.dataset.p] = clamp(i[d.dataset.p] - dy, 50, 420), d.dataset.p));
+new ResizeObserver(colocar).observe(document.body);
+addEventListener('resize', colocar);
+aplicarLayout();
+
+marcarTf();
+cargarMercado().then(cargarCartera).then(cargarVelas);
+setInterval(() => { cargarMercado(); cargarCartera(); if (intradia()) cargarVelas(); }, 60000);
+</script>
+</body>
+</html>
